@@ -152,7 +152,13 @@ var wall_texture, agent_texture, enemy_texture, maze_texture;
 
 // enemy and agent position on squares
 var ei, ej, ai, aj;
-var start, target;
+
+function coordinates (i,j){
+    this.i = i;
+    this.j = j;
+}
+var start = new coordinates();
+var target = new coordinates();
 
 var badsteps;
 var goodsteps;
@@ -385,68 +391,83 @@ function gridSpot(i, j) {
 
 
   // Figure out who my neighbors are
-  this.addNeighbors = function(grid) {
+  this.addNeighbors = function() {
     var i = this.i;
     var j = this.j;
 
-    if (i < cols - 1) this.neighbors.push(grid[i + 1][j]);
-    if (i > 0) this.neighbors.push(grid[i - 1][j]);
-    if (j < rows - 1) this.neighbors.push(grid[i][j + 1]);
-    if (j > 0) this.neighbors.push(grid[i][j - 1]);
+
+    if (i < gridsize - 1) this.neighbors.push(aStarGrid[i + 1][j]);
+    if (i > 0) this.neighbors.push(aStarGrid[i - 1][j]);
+    if (j < gridsize - 1) this.neighbors.push(aStarGrid[i][j + 1]);
+    if (j > 0) this.neighbors.push(aStarGrid[i][j - 1]);
 
     if (diagonal)
     // diagonals are also neighbours:
     {
-      if (i > 0 && j > 0) this.neighbors.push(grid[i - 1][j - 1]);
-      if (i < cols - 1 && j > 0) this.neighbors.push(grid[i + 1][j - 1]);
-      if (i > 0 && j < rows - 1) this.neighbors.push(grid[i - 1][j + 1]);
-      if (i < cols - 1 && j < rows - 1) this.neighbors.push(grid[i + 1][j + 1]);
+      if (i > 0 && j > 0) this.neighbors.push(aStarGrid[i - 1][j - 1]);
+      if (i < gridsize - 1 && j > 0) this.neighbors.push(aStarGrid[i + 1][j - 1]);
+      if (i > 0 && j < gridsize - 1) this.neighbors.push(aStarGrid[i - 1][j + 1]);
+      if (i < gridsize - 1 && j < gridsize - 1) this.neighbors.push(aStarGrid[i + 1][j + 1]);
     }
   };
 }
+
+var aStarGrid = [];
 
 // initialise a astar grid in parallel to main "GRID"
 function aStarInit() {
   var i, j;
   // create the aStarGrid
   for (i = 0; i < gridsize; i++) {
+    aStarGrid[i] = [];
     for (j = 0; j < gridsize; j++) {
       aStarGrid[i][j] = new gridSpot(i, j);
-      aStarGrid[i][j].addNeighbors(aStarGrid);
+      console.log("A* Initialise: " + i + ", "+ j);
     }
+
   }
-}
+
+      for (i = 0; i < gridsize; i++) {
+        for (j = 0; j < gridsize; j++) {
+          aStarGrid[i][j].addNeighbors();
+        }
+    }
+
+    console.log("A* Initialise: Complete");
+  }
+
 
 // A* function that returns the next position in the pathcolor
 function aStar(grid, start, target) {
 
   // Initialize both open and closed list
-  var openSet[];
-  var closedSet[];
+  var openSet = [];
+  var closedSet = [];
   var child;
   var completed = false;
-  var targetNode = gridSpot[target.i][target.j]; // define the target
-  var startNode = gridSpot[start.i][start.j]; // define the target
+  var targetNode = aStarGrid[target.i][target.j]; // define the target
+  var startNode = aStarGrid[start.i][start.j]; // define the target
   var currentNode;
 
   openSet.push(startNode); // push startnode onto Openset
   startNode.f = 0; // reset first f value
 
-  while ((openSet.length > 0) || !completed) {
+  while ((openSet.length > 0) && !completed) {
     openSet.sort(); //sort set by f
     currentNode = openSet.shift(); // shift the first entry
     closedSet.push(currentNode);
     console.log("ClosedSet is " + closedSet.length);
 
     if (currentNode == targetNode) {
-      while (targetNode.parent != startNode)
+      while (targetNode.parent != startNode) {
         currentNode = currentNode.parent;
+      }
       completed = true;
       // backtrack to return the next move
     } else {
       for (n = 0; n < currentNode.neighbors.length; n++) {
         // for each of the neighbours, calculate the children
-        var child = currentNode.neighbors[n];
+        child = currentNode.neighbors[n];
 
         // check if in closedSet or occupied
         if (closedSet.indexOf(child) < 0) {
@@ -457,15 +478,12 @@ function aStar(grid, start, target) {
           child.g = currentNode.g + 1;
           child.h = aStarHeuristics(child, targetNode);
           child.f = child.g + child.h;
-          
-        }
-      }
-    }
-    //    if child.position is in the openList's nodes positions
-    //        if the child.g is higher than the openList node's g
-    //            continue to beginning of for loop        // Add the child to the openList
-    //    add the child to the openList
+        } // check if closedSet
+      } // loop through neighbours
+    } //check if we have reached target
   }
+
+  // end of openSet, and not completed.
 }
 
 
@@ -486,9 +504,9 @@ function moveLogicalEnemy() {
   //   console.log("moving enemy: " + ei + ", " + ej)
   var i, j;
 
-  start = [i = ei, j = ej];
-  end = [i = ai, j = aj];
-  bestPath = aStar(GRID, start, end);
+  start.i = ei; start.j = ej;
+  target.i = ai; target.j = aj;
+  bestPath = aStar(GRID, start, target);
 
   // move enemy to new position
   ei = bestPath[0];
@@ -645,13 +663,13 @@ function consoleGrid() {
   start.j = ej;
   target.i = ai;
   target.j = aj;
+
   console.log("Heuristic: " + aStarHeuristics(start, target));
 }
 
 
 AB.world.newRun = function() {
   AB.loadingScreen();
-
   AB.runReady = false;
 
   badsteps = 0;
@@ -670,6 +688,8 @@ AB.world.newRun = function() {
   loadResources(); // aynch file loads
   // calls initScene() when it returns
 
+    // Initiailise A* Array
+    aStarInit();
   document.onkeydown = keyHandler;
 
 };
@@ -691,7 +711,7 @@ AB.world.takeAction = function(a) {
   if ((AB.step % 2) === 0) // slow the enemy down to every nth step
     moveLogicalEnemy();
 
-  consoleGrid();
+  // consoleGrid();
 
   if (badstep()) badsteps++;
   else goodsteps++;

@@ -24,17 +24,22 @@ var theagent, theenemy;
 // enemy and agent position on squares
 var ei, ej, ai, aj;
 
-function coordinates(i, j) {
-    this.i = i;
-    this.j = j;
+class coordinates {
+    constructor(i, j) {
+        this.i = i;
+        this.j = j;
+    }
 }
+
 var start = new coordinates();
 var target = new coordinates();
+
+const MAX_OPENSET = gridsize * gridsize;
 
 var badsteps;
 var goodsteps;
 
-var diagonal = false;
+var diagonal = true;
 
 //--- grid system -------------------------------------------------------------------------------
 // my numbering is 0 to gridsize-1
@@ -124,9 +129,6 @@ function initScene() // all file loads have returned
 }
 
 
-
-
-
 // A* Support Functions
 
 function gridSpot(i, j) {
@@ -198,7 +200,6 @@ function aStar(grid, start, target) {
 
     // Initialize both open and closed list
     var openSet = [];
-    var closedSet = [];
     var child;
     var completed = false;
     var targetNode = aStarGrid[target.i][target.j]; // define the target
@@ -209,8 +210,26 @@ function aStar(grid, start, target) {
     openSet.push(startNode); // push startnode onto Openset
     startNode.f = 0; // reset first f value
 
+// clearup previous search - need to be more efficient with memory
+console.log("cleaning up previous results");
+    for (i = 0; i < gridsize; i++) {
+        for (j = 0; j < gridsize; j++) {
+            currentNode = aStarGrid[i][j];
+            currentNode.f = currentNode.h = currentNode.g = 0;
+            currentNode.closed = false;
+            currentNode.parent = true;
+        }
+    }
+
     while ((openSet.length > 0) && !completed) {
 
+        if (openSet.length > MAX_OPENSET){
+            // Problem with AB when memory allocation is too high
+            console.log("there is a problem with the openset, bail out");
+            return nextMove;
+            completed = true;
+        }
+        
         openSet.sort((a, b) => (a.f > b.f) ? 1 : -1); //sort set by f
         currentNode = openSet.shift(); // shift the first entry
         currentNode.closed = true; // quick check for closed
@@ -245,7 +264,10 @@ function aStar(grid, start, target) {
                     child.h = aStarHeuristics(child, targetNode);
                     child.f = child.g + child.h;
                     child.parent = currentNode;
-                    openSet.push(child);
+                    if (openSet.indexOf(child)<0){
+                        // if not in openSet
+                        openSet.push(child);
+                    }
 
                 } // check if closedSet
             } // loop through neighbours
@@ -284,8 +306,10 @@ function moveLogicalEnemy() {
     bestPath = aStar(GRID, start, target);
     
     // move enemy to new position
+    GRID[ei][ej] = GRID_BLANK;
     ei = bestPath.i;
     ej = bestPath.j;
+    GRID[ei][ej] = GRID_ENEMY;
 
     console.log("moving enemy: " + ei + ", " + ej)
 
@@ -318,10 +342,10 @@ function consoleGrid() {
         for (var j = 0; j < gridsize; j++) {
             switch (GRID[i][j]) {
                 case GRID_WALL:
-                    gridString = gridString + "L";
+                    gridString = gridString + ".";
                     break;
                 case GRID_MAZE:
-                    gridString = gridString + "X";
+                    gridString = gridString + "+";
                     break;
                 case GRID_AGENT:
                     gridString = gridString + "A";
@@ -336,6 +360,7 @@ function consoleGrid() {
 
         }
         console.log(gridString);
+    
     }
     start.i = ei;
     start.j = ej;
@@ -361,6 +386,8 @@ getState = function () {
 };
 
 consoleGrid();
-
-moveLogicalEnemy();
-consoleGrid();
+while (!badstep())
+{
+	moveLogicalEnemy();
+	consoleGrid();
+}

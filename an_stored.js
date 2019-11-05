@@ -1,6 +1,24 @@
+import {
+    type
+} from "os";
+
 // Cloned by Brendan on 28 Oct 2019 from World "Complex World" by Starter user
 // Please leave this clone trail here.
 
+/**
+// MCM Foundations of AI
+// Stucent Name: Brendan Bonner
+// Code Submission for A* assignment
+
+// Description: AB Starter World with addtional functions whenever the logicalMoveEnemy() function is called.
+// The A* function uses a standalone grid made up of objects containg the A data elements, includeing the hueristic,
+// distance, whether diagonal avaiable or not and the parent.
+
+// The sets are managed by a sorted array containing the open set, while the closed set is based on a flag
+// in the A* array.
+// The  visuals and the sound have been replaced by blue boxes and a click that gets slightly louder and faster
+// when the enemy and agent are close to each other.
+**/
 
 // ==== Starter World ===============================================================================================
 // (c) Ancient Brain Ltd. All rights reserved.
@@ -9,8 +27,6 @@
 // This code may not be copied, re-published or used on any other website.
 // To include a run of this code on another website, see the "Embed code" links provided on the Ancient Brain site.
 // ==================================================================================================================
-
-
 
 // =============================================================================================
 // More complex starter World
@@ -38,12 +54,6 @@
 // =============================================================================================
 
 
-
-
-
-
-
-
 // ===================================================================================================================
 // === Start of tweaker's box ========================================================================================
 // ===================================================================================================================
@@ -53,32 +63,21 @@
 // Go ahead and change some of these. What's the worst that could happen?
 
 
-AB.clockTick = 100;
-
-// Speed of run: Step every n milliseconds. Default 100.
-
-AB.maxSteps = 1000;
-
-// Length of run: Maximum length of run in steps. Default 1000.
-
-AB.screenshotStep = 50;
-
-// Take screenshot on this step. (All resources should have finished loading.) Default 50.
-
-
+AB.clockTick = 100; // Speed of run: Step every n milliseconds. Default 100.
+AB.maxSteps = 1000; // Length of run: Maximum length of run in steps. Default 1000.
+AB.screenshotStep = 50; // Take screenshot on this step. (All resources should have finished loading.) Default 50.
 
 //---- global constants: -------------------------------------------------------
 
 const show3d = true; // Switch between 3d and 2d view (both using Three.js)
 
-
 const TEXTURE_WALL = '/uploads/brendanb/box_tron1.jpg';
 const TEXTURE_MAZE = '/uploads/brendanb/box_tron1.jpg';
-const TEXTURE_AGENT = '/uploads/starter/pacman.jpg';
+const TEXTURE_AGENT = '/uploads/brendanb/pacload.png';
 const TEXTURE_ENEMY = '/uploads/starter/ghost.3.png';
 
 
-const gridsize = 20; // number of squares along side of world
+const gridsize = 28; // number of squares along side of world Pacman was 28
 
 const NOBOXES = Math.trunc((gridsize * gridsize) / 10);
 // density of maze - number of internal boxes
@@ -91,18 +90,12 @@ const MAXPOS = gridsize * squaresize; // length of one side in pixels
 const SKYCOLOR = 0xddffdd; // a number, not a string
 
 
-const startRadiusConst = MAXPOS * 0.8; // distance from centre to start the camera at
+const startRadiusConst = MAXPOS * 1.0; // distance from centre to start the camera at
 const maxRadiusConst = MAXPOS * 10; // maximum distance from camera we will render things
 
-
-
 //--- change ABWorld defaults: -------------------------------
-
 ABHandler.MAXCAMERAPOS = maxRadiusConst;
-
 ABHandler.GROUNDZERO = true; // "ground" exists at altitude zero
-
-
 
 //--- skybox: -------------------------------
 // skybox is a collection of 6 files
@@ -119,10 +112,7 @@ const SKYBOX_ARRAY = [
 
 ];
 
-
-
 //--- Mind can pick one of these actions -----------------
-
 const ACTION_LEFT = 0;
 const ACTION_RIGHT = 1;
 const ACTION_UP = 2;
@@ -134,12 +124,11 @@ const ACTION_STAYSTILL = 4;
 
 
 // contents of a grid square
-
 const GRID_BLANK = 0;
 const GRID_WALL = 1;
 const GRID_MAZE = 2;
-const GRID_ENEMY = 10;
-const GRID_AGENT = 20;
+const GRID_ENEMY = 10; // added information if grid contains the actors, rather than checking globals
+const GRID_AGENT = 20; // added information if grid contains the actors, rather than checking globals
 
 var BOXHEIGHT; // 3d or 2d box height
 
@@ -149,9 +138,10 @@ var theagent, theenemy;
 
 var wall_texture, agent_texture, enemy_texture, maze_texture;
 
-
 // enemy and agent position on squares
 var ei, ej, ai, aj;
+
+// added new class to make it easier to pass coordinates
 class coordinates {
     constructor(i, j) {
         this.i = i;
@@ -199,9 +189,7 @@ function loadResources() // asynchronous file loads - call initScene() when all 
         maze_texture = thetexture;
         if (asynchFinished()) initScene();
     });
-
 }
-
 
 function asynchFinished() // all file loads returned
 {
@@ -210,31 +198,40 @@ function asynchFinished() // all file loads returned
 }
 
 
-
-
 //--- grid system -------------------------------------------------------------------------------
 // my numbering is 0 to gridsize-1
 
-
 function occupied(i, j) // is this square occupied
 {
-    if ((ei == i) && (ej == j)) return true; // variable objects
-    if ((ai == i) && (aj == j)) return true;
+    // Added check to ensure that occupied square is in grid.
+    if (i <= gridsize && j <= gridsize &&
+        i >= 0 && j >= 0) {
 
-    if (GRID[i][j] == GRID_WALL) return true; // fixed objects
-    if (GRID[i][j] == GRID_MAZE) return true;
-
-    return false;
+        switch (GRID[i][j]) {
+            case GRID_WALL:
+            case GRID_MAZE:
+            case GRID_ENEMY:
+            case GRID_AGENT:
+                return true;
+            default:
+                return false;
+        }
+    }
+    // off the grid
+    return true;
 }
 
 
 
 function iswall(i, j) // is this square occupied
 {
-    if (GRID[i][j] == GRID_WALL) return true; // fixed objects
-    if (GRID[i][j] == GRID_MAZE) return true;
-
-    return false;
+    switch (GRID[i][j]) {
+        case GRID_WALL:
+        case GRID_MAZE:
+            return true;
+        default:
+            return false;
+    }
 }
 
 
@@ -246,15 +243,12 @@ function iswall(i, j) // is this square occupied
 function translate(i, j) {
     var v = new THREE.Vector3();
 
-    v.y = 0;
+    v.y = -300;
     v.x = (i * squaresize) - (MAXPOS / 2);
     v.z = (j * squaresize) - (MAXPOS / 2);
 
     return v;
 }
-
-
-
 
 function initScene() // all file loads have returned
 {
@@ -265,9 +259,7 @@ function initScene() // all file loads have returned
     for (i = 0; i < gridsize; i++)
         GRID[i] = new Array(gridsize);
 
-
     // set up walls
-
     for (i = 0; i < gridsize; i++)
         for (j = 0; j < gridsize; j++)
             if ((i === 0) || (i == gridsize - 1) || (j === 0) || (j == gridsize - 1)) {
@@ -389,6 +381,8 @@ function drawAgent() // given ai, aj, draw it
 }
 
 // A* Support Functions
+// This is the set of new A* functions, the first is to create a spot location data type
+// this contains the location, A* paramenters, as well as pointer array to the neighbours
 
 function gridSpot(i, j) {
     // Location
@@ -429,6 +423,7 @@ function gridSpot(i, j) {
     };
 }
 
+// Create Global A* Grid Array
 var aStarGrid = [];
 
 // initialise a astar grid in parallel to main "GRID"
@@ -441,7 +436,6 @@ function aStarInit() {
             aStarGrid[i][j] = new gridSpot(i, j);
             // console.log("A* Initialise: " + i + ", " + j);
         }
-
     }
 
     for (i = 0; i < gridsize; i++) {
@@ -449,11 +443,10 @@ function aStarInit() {
             aStarGrid[i][j].addNeighbors();
         }
     }
-
-    console.log("A* Initialise: Complete");
+    console.info("A* Initialise: Complete");
 }
 
-// A* function that returns the next position in the pathcolor
+// A* function that returns the next position in the as a coordinate (i,j)
 function aStar(grid, start, target) {
 
     // Initialize both open and closed list
@@ -465,42 +458,46 @@ function aStar(grid, start, target) {
     var currentNode;
     var nextMove = new coordinates(start.i, start.j);
 
+    // Push the start node onto the openlist to start the analysis
     openSet.push(startNode); // push startnode onto Openset
-    startNode.f = 0; // reset first f value
 
     // clearup previous search - need to be more efficient with memory
-    console.log("cleaning up previous results");
+    console.info("cleaning up previous results");
     for (i = 0; i < gridsize; i++) {
         for (j = 0; j < gridsize; j++) {
             currentNode = aStarGrid[i][j];
             currentNode.f = currentNode.h = currentNode.g = 0;
             currentNode.closed = false;
-            currentNode.parent=null;
+            currentNode.parent = null;
         }
     }
 
+    // loop through all of the a* openlist or until target or error found
     while ((openSet.length > 0) && !completed) {
 
         if (openSet.length > MAX_OPENSET) {
-            console.log("there is a problem with the openset, bail out");
-            return nextMove;
+            // Prevent Memory Issues when debugging OpenSet
+            console.error("there is a problem with the openset, bail out!");
             completed = true;
+            return nextMove;
         }
 
+        // Sort the list based on the f value
         openSet.sort((a, b) => (a.f > b.f) ? 1 : -1); //sort set by f
-        currentNode = openSet.shift(); // shift the first entry
+        currentNode = openSet.shift(); // shift the first entry of OpenSet
         currentNode.closed = true; // quick check for closed
-        //console.log("Current: " + currentNode.i + ", " + currentNode.j + " - (O/C) is " + +openSet.length + "/" + closedSet.length);
-        if (currentNode == targetNode) {
-            console.log("Start: " + start.i + ", " + start.j + ", Target: " + target.i + "," + target.j);
 
+        console.info("Current: " + currentNode.i + ", " + currentNode.j + " - (O/C) is " + openSet.length);
+        if (currentNode == targetNode) {
+            // Found Target - now backtrack to get next node
             while (currentNode.parent != startNode) {
-                console.log(": " + currentNode.i + ", " + currentNode.j + " => " + currentNode.parent.i + ", " + currentNode.parent.j);
+                // backtrack to return the next move    
                 currentNode = currentNode.parent;
             }
             completed = true;
-            // backtrack to return the next move
+
         } else {
+            // if we are not at target, build openSet
             for (n = 0; n < currentNode.neighbors.length; n++) {
                 // for each of the neighbours, calculate the children
                 child = currentNode.neighbors[n];
@@ -514,18 +511,17 @@ function aStar(grid, start, target) {
                 } else {
                     // calculate values and add to openSet
                     if ((child.i == currentNode.i) || (child.j == currentNode.j))
-                        child.g = currentNode.g + 10; // if not diagonal
+                        child.g = currentNode.g + 10; // if not diagonal, use 10 as metric
                     else
-                        child.g = currentNode.g + 14; // if diagonal
+                        child.g = currentNode.g + 14; // rougly the square path if diagonal
 
                     child.h = aStarHeuristics(child, targetNode);
                     child.f = child.g + child.h;
                     child.parent = currentNode;
-                    if (openSet.indexOf(child)<0){
+                    if (openSet.indexOf(child) < 0) {
                         // if not in openSet
                         openSet.push(child);
                     }
-                        
 
                 } // check if closedSet
             } // loop through neighbours
@@ -535,6 +531,7 @@ function aStar(grid, start, target) {
     nextMove.i = currentNode.i;
     nextMove.j = currentNode.j;
 
+    console.info("returning form a*: ");
     return nextMove;
     // end of openSet, and not completed.
 }
@@ -555,22 +552,25 @@ function moveLogicalEnemy() {
     // move towards agent
     // put some randomness in so it won't get stuck with barriers
 
-    //   console.log("moving enemy: " + ei + ", " + ej)
     var i, j;
 
     start.i = ei;
     start.j = ej;
     target.i = ai;
     target.j = aj;
+
+    // call the a* algorithm to provide the best path between targets (GRID not necessary, as globals used)
     bestPath = aStar(GRID, start, target);
 
-    GRID[ei][ej] = GRID_BLANK; // Store Agents Position
-    // move enemy to new position
-    ei = bestPath.i;
-    ej = bestPath.j;
-    GRID[ei][ej] = GRID_ENEMY;
-
-    console.log("moving enemy: " + ei + ", " + ej)
+    // Only Move if the space is empty
+    if (!occupied(bestPath.i, bestPath.j)) {
+        GRID[ei][ej] = GRID_BLANK; // Store Agents Position
+        // move enemy to new position
+        ei = bestPath.i;
+        ej = bestPath.j;
+        GRID[ei][ej] = GRID_ENEMY;
+    }
+    console.info("enemy moving to : " + ei + "," + ej)
 
 }
 
@@ -580,10 +580,27 @@ function moveLogicalAgent(a) // this is called by the infrastructure that gets a
     var i = ai;
     var j = aj;
 
-    if (a == ACTION_LEFT) i--;
-    else if (a == ACTION_RIGHT) i++;
-    else if (a == ACTION_UP) j++;
-    else if (a == ACTION_DOWN) j--;
+    // depending on the agent move, spin the sphere
+    switch (a) {
+        case ACTION_LEFT:
+            i--;
+            theagent.rotation.y = 0;
+            break;
+        case ACTION_RIGHT:
+            i++;
+            theagent.rotation.y = -1;
+            break;
+        case ACTION_UP:
+            j++;
+            theagent.rotation.y = -2;
+            break;
+        case ACTION_DOWN:
+            j--;
+            theagent.rotation.y = 2;
+            break;
+        default:
+            break;
+    }
 
     if (!occupied(i, j)) {
         GRID[ai][aj] = GRID_BLANK; // Clear Agents Previous Position
@@ -646,6 +663,7 @@ function badstep() // is the enemy within one square of the agent
 }
 
 
+
 function agentBlocked() // agent is blocked on all sides, run over
 {
     return (occupied(ai - 1, aj) &&
@@ -660,7 +678,8 @@ function updateStatusBefore(a)
 // update status to show old state and proposed move
 {
     var x = AB.world.getState();
-    AB.msg(" Step: " + AB.step + " &nbsp; x = (" + x.toString() + ") &nbsp; a = (" + a + ") ");
+    AB.msg("Step: " + AB.step + "<br>x = (" + x.toString() + ")");
+    // <br>a = (" + a + ")<br>");
 }
 
 
@@ -671,14 +690,32 @@ function updateStatusAfter() // agent and enemy have moved, can calculate score
     var y = AB.world.getState();
     var score = (goodsteps / AB.step) * 100;
 
-    AB.msg(" &nbsp; y = (" + y.toString() + ") <br>" +
-        " Bad steps: " + badsteps +
+    //AB.msg("y = (" + y.toString() + ") <br>" +
+    AB.msg(" Bad steps: " + badsteps +
         " &nbsp; Good steps: " + goodsteps +
         " &nbsp; Score: " + score.toFixed(2) + "% ", 2);
 }
 
+function playSound() // is the enemy within one square of the agent
+{
 
+    // load click sound & based on distance, speed up and change volume
+    var sound = new Audio('/uploads/brendanb/click.ogg');
+    var soundRate = 1 + (((Math.abs(ei - ai)) + Math.abs((ej - aj))) / (gridsize));
+    console.log("PlaybackRate: " + soundRate);
 
+    sound.playbackRate = soundRate;
+    sound.volume = 1 / soundRate;
+    if (Math.abs(ei - ai) + Math.abs(ej - aj) < 2) {
+        sound.playbackRate = soundRate * 2;
+        sound.play();
+    }
+    sound.play();
+
+}
+
+// Debugging using AB was not the friendliest, so created function to debug using node.js
+// prints a 2D text grid containing elements
 function consoleGrid() {
     var gridString = "";
 
@@ -749,27 +786,38 @@ AB.world.getState = function () {
     return (x);
 };
 
-
+var enemyAngle = 0;
 
 AB.world.takeAction = function (a) {
     updateStatusBefore(a); // show status line before moves
 
+    console.info("-: Agent: " + ai + "," + aj + " Enemy: " + ei + "," + ej);
+
     moveLogicalAgent(a);
 
-    if ((AB.step % 2) === 0) // slow the enemy down to every nth step
+    if ((AB.step % 2) === 0) { // slow the enemy down to every nth step
+        playSound();
         moveLogicalEnemy();
+    }
+
+    console.info("+: Agent: " + ai + "," + aj + " Enemy: " + ei + "," + ej);
 
     // consoleGrid();
 
     if (badstep()) badsteps++;
     else goodsteps++;
 
+    // Spin the enemy around every turn
+    enemyAngle += 0.2;
+    theenemy.rotation.y = enemyAngle;
+    // theagent.rotation.y -= 0.2;
+
     drawAgent();
     drawEnemy();
     updateStatusAfter(); // show status line after moves
 
 
-    if (agentBlocked()) // if agent blocked in, run over
+    if (agentBlocked() || ((goodsteps / AB.step) < 0.4)) // if agent blocked in, run over
     {
         AB.abortRun = true;
         goodsteps = 0; // you score zero as far as database is concerned
@@ -779,14 +827,11 @@ AB.world.takeAction = function (a) {
 
 };
 
-
-
 AB.world.endRun = function () {
     //  musicPause();
-    if (AB.abortRun) AB.msg(" <br> <font color=red> <B> Agent trapped. Final score zero. </B> </font>   ", 3);
+    if (AB.abortRun) AB.msg(" <br> <font color=red> <B> Agent trapped.</B> </font>   ", 3);
     else AB.msg(" <br> <font color=green> <B> Run over. </B> </font>   ", 3);
 };
-
 
 AB.world.getScore = function () {
     // only called at end - do not use AB.step because it may have just incremented past AB.maxSteps

@@ -1,7 +1,3 @@
-import {
-    type
-} from "os";
-
 // Cloned by Brendan on 28 Oct 2019 from World "Complex World" by Starter user
 // Please leave this clone trail here.
 
@@ -75,22 +71,22 @@ const TEXTURE_WALL = '/uploads/brendanb/box_tron1.jpg';
 const TEXTURE_MAZE = '/uploads/brendanb/box_tron1.jpg';
 const TEXTURE_AGENT = '/uploads/brendanb/pacload.png';
 const TEXTURE_ENEMY = '/uploads/starter/ghost.3.png';
+//const TEXTURE_ENEMY = '/uploads/brendan/1570456293.png';
 
-
-const gridsize = 28; // number of squares along side of world Pacman was 28
+const gridsize = 20; // number of squares along side of world NB: Pacman was 28
 
 const NOBOXES = Math.trunc((gridsize * gridsize) / 10);
 // density of maze - number of internal boxes
 // (bug) use trunc or can get a non-integer
 
-const squaresize = 100; // size of square in pixels
+const squaresize = 20; // size of square in pixels
 
 const MAXPOS = gridsize * squaresize; // length of one side in pixels
 
 const SKYCOLOR = 0xddffdd; // a number, not a string
 
 
-const startRadiusConst = MAXPOS * 1.0; // distance from centre to start the camera at
+const startRadiusConst = MAXPOS * 0.8; // distance from centre to start the camera at
 const maxRadiusConst = MAXPOS * 10; // maximum distance from camera we will render things
 
 //--- change ABWorld defaults: -------------------------------
@@ -157,7 +153,12 @@ var goodsteps;
 
 const MAX_OPENSET = gridsize * gridsize;
 
-var diagonal = false;
+// diagonal option enabled significantly increases performance of the enemy bot
+// and allows access to shorter routes
+var diagonal = true;
+const PROOF = true;
+var proofArray = [];
+
 
 function loadResources() // asynchronous file loads - call initScene() when all finished
 {
@@ -243,7 +244,7 @@ function iswall(i, j) // is this square occupied
 function translate(i, j) {
     var v = new THREE.Vector3();
 
-    v.y = -300;
+    v.y = -squaresize;
     v.x = (i * squaresize) - (MAXPOS / 2);
     v.z = (j * squaresize) - (MAXPOS / 2);
 
@@ -489,12 +490,30 @@ function aStar(grid, start, target) {
 
         console.info("Current: " + currentNode.i + ", " + currentNode.j + " - (O/C) is " + openSet.length);
         if (currentNode == targetNode) {
+
+            // Proof array
+            if (PROOF){
+                proofArray.push(targetNode);
+            }
+
             // Found Target - now backtrack to get next node
             while (currentNode.parent != startNode) {
-                // backtrack to return the next move    
+
+                 // if we require proof, push store path
+                if (PROOF){
+                    proofArray.push(currentNode);
+                }
+                
+                // backtrack to return the next move                
                 currentNode = currentNode.parent;
             }
             completed = true;
+
+            // Proof array
+            if (PROOF){
+                proofArray.push(startNode);
+            }
+
 
         } else {
             // if we are not at target, build openSet
@@ -787,6 +806,7 @@ AB.world.getState = function () {
 };
 
 var enemyAngle = 0;
+var cameraAngle;
 
 AB.world.takeAction = function (a) {
     updateStatusBefore(a); // show status line before moves
@@ -816,13 +836,19 @@ AB.world.takeAction = function (a) {
     drawEnemy();
     updateStatusAfter(); // show status line after moves
 
-
-    if (agentBlocked() || ((goodsteps / AB.step) < 0.4)) // if agent blocked in, run over
+    // enemy will agressively pin agen to wall, if score reaches 10%, generally pointless (and
+    // and exponentially increasing time to claim run over
+    if (agentBlocked() || ((goodsteps / AB.step) < 0.10)) // if agent blocked in, run over
     {
         AB.abortRun = true;
         goodsteps = 0; // you score zero as far as database is concerned
         //	musicPause();
         //	soundAlarm();
+    }
+
+    // Proof array
+    if (PROOF){
+        drawProof();
     }
 
 };
@@ -840,3 +866,38 @@ AB.world.getScore = function () {
     var x = Math.round(s * 100); // 9344
     return (x / 100); // 93.44
 };
+
+
+
+// Draw the A* algortihm on the screen
+// Needs more work in terms of the path changing and colours, but good enough
+// To slow down the path and see it.
+
+function drawProof()
+{
+    var point1; // local "Spots"
+    var point2; // local "Spots"
+
+    var material = new THREE.LineBasicMaterial({
+        color: 0xff0000,
+        linewidth: 5
+    });
+
+    // in the proofArray
+    for ( i = proofArray.length; i > 1; i--)
+    {
+        point1 = proofArray.shift();
+        if (point1.parent){
+            
+        point2 = point1.parent;
+        // drawline between proofArrayPoints
+            var mat = new THREE.LineBasicMaterial({color:0x8888FF, linewidth:25, vertexColors: THREE.VertexColors });
+            var geo = new THREE.Geometry();
+            geo.vertices.push( translate(point1.i, point1.j) );
+            geo.vertices.push( translate(point2.i, point2.j) );
+            console.warn("Line between " + point1.i + "," + point1.j + " and " + point2.i + "," + point2.j)
+            var line = new THREE.Line(geo);
+            ABWorld.scene.add(line);
+        }
+    }
+}
